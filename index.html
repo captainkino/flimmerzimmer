@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flimmerzimmer</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#141511; --line:#383a31; --muted:#94968b; --paper:#efeee5; --acid:#d5f36b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ink); color:var(--paper); font:14px Manrope,sans-serif; }
+  .wrap { display:flex; gap:40px; padding:30px; flex-wrap:wrap; align-items:flex-start; }
+  .side { width:380px; max-width:100%; }
+  h1 { margin:0 0 6px; font-size:26px; }
+  .sub { color:var(--muted); margin-bottom:20px; }
+  .group { border-top:1px solid var(--line); padding:16px 0; }
+  .group h2 { font-size:12px; letter-spacing:.15em; margin:0 0 12px; }
+  label { display:block; color:var(--muted); margin:8px 0 4px; }
+  input[type=text] { width:100%; padding:11px; background:#0f100d; border:1px solid var(--line); color:var(--paper); font:inherit; }
+  .row { display:flex; align-items:center; gap:10px; margin:8px 0; }
+  .row .l { flex:1; }
+  .row input[type=range] { width:130px; }
+  .val { width:46px; text-align:right; color:var(--muted); font-size:12px; }
+  input[type=color] { width:38px; height:28px; border:1px solid var(--line); background:none; padding:0; }
+  button { width:100%; padding:14px; border:0; background:var(--acid); color:#111; font:700 14px Manrope,sans-serif; cursor:pointer; margin-top:8px; }
+  button.sec { background:#2a2b24; color:var(--paper); }
+  .hint { color:var(--muted); font-size:12px; margin-top:8px; }
+
+  /* Vorschau */
+  .preview { position:relative; width:390px; max-width:100%; aspect-ratio:1170/2532; background:#0e0f0c; overflow:hidden; border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,.6); }
+  #bgArea { position:absolute; left:0; right:0; top:14%; bottom:12%; overflow:hidden; cursor:pointer; background:#15160f; }
+  #bgImg { position:absolute; inset:-20px; width:calc(100% + 40px); height:calc(100% + 40px); object-fit:cover; display:none; }
+  #bgHint { position:absolute; top:10px; left:0; right:0; text-align:center; color:var(--muted); font-size:11px; pointer-events:none; }
+  #vignette { position:absolute; inset:0; pointer-events:none; }
+
+  .banner { position:absolute; left:0; right:0; background:linear-gradient(#2b2c28,#161714); }
+  .banner .ln { position:absolute; left:0; right:0; height:3px; }
+  .banner .tx { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:Orbitron,sans-serif; text-transform:uppercase; text-align:center; line-height:1.25; }
+  #topBanner { top:3%; height:10%; }
+  #bottomBanner { top:86%; height:11%; }
+
+  /* Cover: zwei Reihen, 1 oben, 2 unten */
+  #covers { position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; align-items:center; gap:var(--gapV); padding:0 var(--padX); pointer-events:none; }
+  .crow { display:flex; justify-content:center; gap:var(--gapH); width:100%; }
+  .cover { pointer-events:auto; cursor:pointer; width:var(--cw); aspect-ratio:2/3; overflow:hidden; background:rgba(30,30,30,.85); position:relative; flex:0 0 auto; }
+  .cover img { width:100%; height:100%; object-fit:cover; display:block; }
+  .cover .ph { display:flex; height:100%; align-items:center; justify-content:center; text-align:center; color:var(--muted); font-size:11px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="side">
+    <h1>Flimmerzimmer</h1>
+    <div class="sub">Filmabend-Plakat gestalten</div>
+
+    <div class="group">
+      <h2>TEXTE</h2>
+      <label for="title">Titel</label>
+      <input type="text" id="title" value="Flimmerzimmer">
+      <label for="time">Vorstellungszeit</label>
+      <input type="text" id="time" value="Vorstellung 20:00 Uhr">
+    </div>
+
+    <div class="group">
+      <h2>FARBEN</h2>
+      <div class="row"><span class="l">Schrift oben</span><input type="color" id="topColor" value="#ffffff"></div>
+      <div class="row"><span class="l">Schrift unten</span><input type="color" id="bottomColor" value="#ffffff"></div>
+      <div class="row"><span class="l">Bannerlinien</span><input type="color" id="lineColor" value="#c0392b"></div>
+      <div class="row"><span class="l">Coverrahmen</span><input type="color" id="borderColor" value="#c0392b"></div>
+    </div>
+
+    <div class="group">
+      <h2>EFFEKTE</h2>
+      <div class="row"><input type="checkbox" id="shadowOn" checked><span class="l">Cover-Schatten</span><input type="range" id="shadowK" min="0" max="100" value="58"><span class="val" id="shadowKv">58%</span></div>
+      <div class="row"><input type="checkbox" id="blurOn" checked><span class="l">Hintergrund weichzeichnen</span><input type="range" id="blurK" min="0" max="20" value="7"><span class="val" id="blurKv">7 px</span></div>
+      <div class="row"><input type="checkbox" id="vigOn" checked><span class="l">Vignette</span><input type="range" id="vigK" min="0" max="100" value="55"><span class="val" id="vigKv">55%</span></div>
+      <div class="row"><span class="l">Coverrahmen-Breite</span><input type="range" id="borderW" min="0" max="8" value="2"><span class="val" id="borderWv">2 px</span></div>
+      <div class="row"><input type="checkbox" id="roundOn" checked><span class="l">Gerundete Ecken</span></div>
+    </div>
+
+    <div class="group">
+      <h2>MOTIVE</h2>
+      <div class="hint">Klicke in der Vorschau auf den Hintergrund oder ein Cover, um das Ziel zu wählen. Dann Bild per Button wählen, hineinziehen oder mit Strg+V einfügen.</div>
+      <div class="row"><span class="l" id="targetLabel">Ziel: Hintergrund</span></div>
+      <button class="sec" id="pickBtn">Bild auswählen</button>
+      <button class="sec" id="resetBtn">Alles zurücksetzen</button>
+      <input type="file" id="file" accept="image/*" hidden>
+    </div>
+
+    <div class="group">
+      <button id="exportBtn">Als JPEG exportieren</button>
+      <div class="hint">Export: 1170 × 2532 px (iPhone 12 Pro)</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="preview" id="preview">
+      <div id="bgArea">
+        <img id="bgImg" alt="">
+        <div id="bgHint">Genre-Hintergrund: hier anklicken, dann Bild einfügen</div>
+        <div id="vignette"></div>
+      </div>
+      <div class="banner" id="topBanner"><div class="ln" style="top:0"></div><div class="ln" style="bottom:0"></div><div class="tx" id="topTx"></div></div>
+      <div class="banner" id="bottomBanner"><div class="ln" style="top:0"></div><div class="ln" style="bottom:0"></div><div class="tx" id="bottomTx"></div></div>
+      <div id="covers">
+        <div class="crow" id="row1"></div>
+        <div class="crow" id="row2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const W = 1170, H = 2532;
+const RATIO = 2 / 3;
+const $ = id => document.getElementById(id);
+
+/* Layout im Export (in Pixeln) */
+const L = {
+  topY1: 76,  topY2: 330,
+  botY1: 2178, botY2: 2456,
+  bgY1: 330,  bgY2: 2178,
+  line: 9,
+  padX: 45,   // seitlicher Abstand
+  gapH: 30,   // Abstand zwischen Covern in einer Reihe
+  gapV: 30    // Abstand zwischen den Reihen
+};
+
+const images = { bg: null, covers: [null, null, null] };
+let target = 'bg';
+
+/* Bild laden */
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function setImageFor(file) {
+  const img = await loadImage(file);
+  if (target === 'bg') images.bg = img;
+  else images.covers[target] = img;
+  render();
+}
+
+/* Ziel wählen */
+function setTarget(t) {
+  target = t;
+  $('targetLabel').textContent = 'Ziel: ' + (t === 'bg' ? 'Hintergrund' : 'Cover ' + (t + 1));
+  markTarget();
+}
+
+function markTarget() {
+  document.querySelectorAll('.cover').forEach(el => {
+    const i = +el.dataset.idx;
+    el.style.outline = (target === i) ? '2px dashed #d5f36b' : 'none';
+    el.style.outlineOffset = '2px';
+  });
+  $('bgArea').style.outline = (target === 'bg') ? '2px dashed #d5f36b' : 'none';
+  $('bgArea').style.outlineOffset = '-2px';
+}
+
+/* Cover-Felder aufbauen: Cover 1 in Reihe 1, Cover 2 und 3 in Reihe 2 */
+function buildCovers() {
+  const rows = [$('row1'), $('row2')];
+  const placement = [0, 1, 1];
+  rows.forEach(r => r.innerHTML = '');
+  for (let i = 0; i < 3; i++) {
+    const el = document.createElement('div');
+    el.className = 'cover';
+    el.dataset.idx = i;
+    el.addEventListener('click', e => { e.stopPropagation(); setTarget(i); });
+    rows[placement[i]].appendChild(el);
+  }
+  $('bgArea').addEventListener('click', () => setTarget('bg'));
+}
+
+/* Dateiauswahl */
+$('pickBtn').addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) setImageFor(f);
+  e.target.value = '';
+});
+
+/* Drag & Drop */
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (!f || !f.type.startsWith('image/')) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const cov = el && el.closest('.cover');
+  if (cov) setTarget(+cov.dataset.idx);
+  else if (el && el.closest('#bgArea')) setTarget('bg');
+  setImageFor(f);
+});
+
+/* Einfügen aus der Zwischenablage */
+document.addEventListener('paste', e => {
+  const items = e.clipboardData ? [...e.clipboardData.items] : [];
+  const item = items.find(i => i.type.startsWith('image/'));
+  if (item) setImageFor(item.getAsFile());
+});
+
+/* Zurücksetzen */
+$('resetBtn').addEventListener('click', () => {
+  images.bg = null;
+  images.covers = [null, null, null];
+  render();
+});
+
+/* Regler und Eingaben */
+['shadowK', 'blurK', 'vigK', 'borderW'].forEach(id => {
+  $(id).addEventListener('input', () => {
+    const suffix = (id === 'borderW' || id === 'blurK') ? ' px' : '%';
+    $(id + 'v').textContent = $(id).value + suffix;
+    render();
+  });
+});
+['shadowOn', 'blurOn', 'vigOn', 'roundOn', 'title', 'time', 'topColor', 'bottomColor', 'lineColor', 'borderColor']
+  .forEach(id => $(id).addEventListener('input', render));
+
+/* Berechnung der Coverbreite für die Vorschau:
+   zwei Cover müssen nebeneinander in die Breite passen */
+function coverWidthPreview(sc) {
+  const availW = W * sc - 2 * L.padX * sc;
+  return (availW - L.gapH * sc) / 2;
+}
+
+/* Vorschau */
+function render() {
+  const pv = $('preview');
+  const sc = pv.clientWidth / W;
+
+  /* Hintergrund */
+  const bi = $('bgImg');
+  if (images.bg) {
+    bi.src = images.bg.src;
+    bi.style.display = 'block';
+    bi.style.filter = $('blurOn').checked ? 'blur(' + ($('blurK').value * sc * 3) + 'px)' : 'none';
+    $('bgHint').style.display = 'none';
+  } else {
+    bi.style.display = 'none';
+    $('bgHint').style.display = 'block';
+  }
+
+  /* Vignette */
+  $('vignette').style.background = $('vigOn').checked
+    ? 'radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,' + ($('vigK').value / 100) + ') 100%)'
+    : 'none';
+
+  /* Banner */
+  const lc = $('lineColor').value;
+  document.querySelectorAll('.banner .ln').forEach(l => {
+    l.style.background = lc;
+    l.style.height = Math.max(2, L.line * sc) + 'px';
+  });
+  const fsBig = Math.round(72 * sc), fsSmall = Math.round(38 * sc), fsTime = Math.round(62 * sc);
+  const t1 = ($('title').value.trim() || 'Flimmerzimmer');
+  const t2 = ($('time').value.trim() || 'Vorstellung 20:00 Uhr');
+  $('topTx').style.color = $('topColor').value;
+  $('topTx').innerHTML = '<div style="font-weight:700;font-size:' + fsSmall + 'px">Heute im</div>' +
+                         '<div style="font-weight:800;font-size:' + fsBig + 'px"></div>';
+  $('topTx').lastChild.textContent = t1;
+  $('bottomTx').style.color = $('bottomColor').value;
+  $('bottomTx').innerHTML = '<div style="font-weight:800;font-size:' + fsTime + 'px"></div>';
+  $('bottomTx').firstChild.textContent = t2;
+
+  /* Cover-Layout als CSS-Variablen */
+  const covers = $('covers');
+  covers.style.setProperty('--cw', coverWidthPreview(sc) + 'px');
+  covers.style.setProperty('--padX', (L.padX * sc) + 'px');
+  covers.style.setProperty('--gapH', (L.gapH * sc) + 'px');
+  covers.style.setProperty('--gapV', (L.gapV * sc) + 'px');
+
+  /* Cover-Optik */
+  const rad = $('roundOn').checked ? Math.round(36 * sc) : 0;
+  const bw = $('borderW').value * 3 * sc;
+  const k = $('shadowOn').checked ? $('shadowK').value / 100 : 0;
+  const shadow = k > 0
+    ? '0 ' + (25 * k * sc) + 'px ' + (70 * k * sc) + 'px rgba(0,0,0,' + Math.min(1, k) + ')'
+    : 'none';
+
+  document.querySelectorAll('.cover').forEach(el => {
+    const i = +el.dataset.idx;
+    el.style.borderRadius = rad + 'px';
+    el.style.border = bw > 0 ? bw + 'px solid ' + $('borderColor').value : 'none';
+    el.style.boxShadow = shadow;
+    el.innerHTML = '';
+    if (images.covers[i]) {
+      const im = document.createElement('img');
+      im.src = images.covers[i].src;
+      el.appendChild(im);
+    } else {
+      el.innerHTML = '<div class="ph">Cover ' + (i + 1) + '<br>anklicken</div>';
+    }
+  });
+  markTarget();
+}
+
+/* Bild einpassen (füllend, mittig) */
+function drawCoverFit(ctx, img, x, y, w, h) {
+  const s = Math.max(w / img.width, h / img.height);
+  const dw = img.width * s, dh = img.height * s;
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+/* Banner im Export */
+function drawBanner(ctx, y1, y2, textColor, lineColor, lines, credit) {
+  const h = y2 - y1;
+  const grad = ctx.createLinearGradient(0, y1, 0, y2);
+  grad.addColorStop(0, '#2b2c28');
+  grad.addColorStop(1, '#161714');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, y1, W, h);
+
+  ctx.save();
+  ctx.fillStyle = lineColor;
+  ctx.shadowColor = 'rgba(0,0,0,.6)';
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 4;
+  ctx.fillRect(0, y1, W, L.line);
+  ctx.fillRect(0, y2 - L.line, W, L.line);
+  ctx.restore();
+
+  ctx.save();
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (lines.length === 2) {
+    ctx.font = '700 38px Orbitron, sans-serif';
+    ctx.fillText(lines[0].toUpperCase(), W / 2, y1 + h * 0.32);
+    ctx.font = '800 72px Orbitron, sans-serif';
+    ctx.fillText(lines[1].toUpperCase(), W / 2, y1 + h * 0.68);
+  } else {
+    ctx.font = '800 62px Orbitron, sans-serif';
+    ctx.fillText(lines[0].toUpperCase(), W / 2, credit ? y1 + h * 0.42 : y1 + h / 2);
+  }
+  ctx.restore();
+
+  if (credit) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(200,200,190,.65)';
+    ctx.font = '400 22px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(credit, W / 2, y1 + h * 0.80);
+    ctx.restore();
+  }
+}
+
+/* Export */
+async function exportJpeg() {
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+
+  ctx.fillStyle = '#0e0f0c';
+  ctx.fillRect(0, 0, W, H);
+
+  /* Hintergrund */
+  const bgH = L.bgY2 - L.bgY1;
+  if (images.bg) {
+    const t = document.createElement('canvas');
+    t.width = W; t.height = bgH;
+    const tc = t.getContext('2d');
+    drawCoverFit(tc, images.bg, 0, 0, W, bgH);
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, L.bgY1, W, bgH); ctx.clip();
+    if ($('blurOn').checked) {
+      const px = $('blurK').value * 3;
+      ctx.filter = 'blur(' + px + 'px)';
+      ctx.drawImage(t, -px * 2, L.bgY1 - px * 2, W + px * 4, bgH + px * 4);
+      ctx.filter = 'none';
+      if (ctx.filter !== 'blur(' + px + 'px)' && px > 0) {
+        const f = Math.max(0.03, 1 / (1 + px / 3));
+        const s = document.createElement('canvas');
+        s.width = Math.max(2, Math.round(W * f));
+        s.height = Math.max(2, Math.round(bgH * f));
+        const sctx = s.getContext('2d');
+        sctx.imageSmoothingQuality = 'high';
+        sctx.drawImage(t, 0, 0, s.width, s.height);
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(s, 0, L.bgY1, W, bgH);
+      }
+    } else {
+      ctx.drawImage(t, 0, L.bgY1);
+    }
+    ctx.restore();
+  }
+
+  /* Vignette */
+  if ($('vigOn').checked) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, L.bgY1, W, bgH); ctx.clip();
+    const cx = W / 2, cyc = L.bgY1 + bgH / 2;
+    const v = ctx.createRadialGradient(cx, cyc, bgH * 0.25, cx, cyc, bgH * 0.75);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,' + ($('vigK').value / 100) + ')');
+    ctx.fillStyle = v;
+    ctx.fillRect(0, L.bgY1, W, bgH);
+    ctx.restore();
+  }
+
+  /* Cover: zwei Reihen, Breite so, dass zwei nebeneinander passen */
+  const cw = (W - 2 * L.padX - L.gapH) / 2;
+  const ch = cw / RATIO;
+  const totalH = ch * 2 + L.gapV;
+  const top = (H - totalH) / 2;
+  const rowY = [top, top + ch + L.gapV];
+  const pos = [
+    { x: (W - cw) / 2, y: rowY[0] },                              // Cover 1: oben, mittig
+    { x: L.padX, y: rowY[1] },                                    // Cover 2: unten links
+    { x: L.padX + cw + L.gapH, y: rowY[1] }                       // Cover 3: unten rechts
+  ];
+
+  const rad = $('roundOn').checked ? 36 : 0;
+  const bw = $('borderW').value * 3;
+  const sk = $('shadowOn').checked ? $('shadowK').value / 100 : 0;
+
+  images.covers.forEach((img, i) => {
+    if (!img) return;
+    const { x, y } = pos[i];
+
+    if (sk > 0) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,' + Math.min(1, sk) + ')';
+      ctx.shadowBlur = 70 * sk;
+      ctx.shadowOffsetY = 25 * sk;
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.roundRect(x, y, cw, ch, rad); ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(x, y, cw, ch, rad); ctx.clip();
+    drawCoverFit(ctx, img, x, y, cw, ch);
+    ctx.restore();
+
+    if (bw > 0) {
+      ctx.save();
+      ctx.lineWidth = bw;
+      ctx.strokeStyle = $('borderColor').value;
+      ctx.beginPath();
+      ctx.roundRect(x + bw / 2, y + bw / 2, cw - bw, ch - bw, Math.max(0, rad - bw / 2));
+      ctx.stroke();
+      ctx.restore();
+    }
+  });
+
+  /* Banner */
+  drawBanner(ctx, L.topY1, L.topY2, $('topColor').value, $('lineColor').value,
+    ['Heute im', $('title').value.trim() || 'Flimmerzimmer']);
+  drawBanner(ctx, L.botY1, L.botY2, $('bottomColor').value, $('lineColor').value,
+    [$('time').value.trim() || 'Vorstellung 20:00 Uhr'],
+    'Appdesign \u00A9 by S+ | ps 2026');
+
+  c.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'flimmerzimmer.jpg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }, 'image/jpeg', 0.94);
+}
+
+$('exportBtn').addEventListener('click', exportJpeg);
+window.addEventListener('resize', render);
+
+buildCovers();
+setTarget('bg');
+render();
+</script>
+</body>
+</html>
