@@ -39,7 +39,7 @@
   #topBanner { top:3%; height:10%; }
   #bottomBanner { top:86%; height:11%; }
 
-  /* Cover: zwei Reihen, 1 oben, 2 unten */
+  /* Cover-Raster: Reihen und Spalten einstellbar */
   #covers { position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; align-items:center; gap:var(--gapV); padding:0 var(--padX); pointer-events:none; }
   .crow { display:flex; justify-content:center; gap:var(--gapH); width:100%; }
   .cover { pointer-events:auto; cursor:pointer; width:var(--cw); aspect-ratio:2/3; overflow:hidden; background:rgba(30,30,30,.85); position:relative; flex:0 0 auto; }
@@ -59,6 +59,13 @@
       <input type="text" id="title" value="Flimmerzimmer">
       <label for="time">Vorstellungszeit</label>
       <input type="text" id="time" value="Vorstellung 20:00 Uhr">
+    </div>
+
+    <div class="group">
+      <h2>LAYOUT</h2>
+      <div class="row"><span class="l">Reihen</span><input type="range" id="rowsK" min="1" max="3" step="1" value="2"><span class="val" id="rowsKv">2</span></div>
+      <div class="row"><span class="l">Spalten</span><input type="range" id="colsK" min="1" max="3" step="1" value="2"><span class="val" id="colsKv">2</span></div>
+      <div class="hint">Alle Cover haben die gleiche Größe und werden automatisch so groß wie möglich eingepasst (max. 3 × 3).</div>
     </div>
 
     <div class="group">
@@ -102,10 +109,7 @@
       </div>
       <div class="banner" id="topBanner"><div class="ln" style="top:0"></div><div class="ln" style="bottom:0"></div><div class="tx" id="topTx"></div></div>
       <div class="banner" id="bottomBanner"><div class="ln" style="top:0"></div><div class="ln" style="bottom:0"></div><div class="tx" id="bottomTx"></div></div>
-      <div id="covers">
-        <div class="crow" id="row1"></div>
-        <div class="crow" id="row2"></div>
-      </div>
+      <div id="covers"></div>
     </div>
   </div>
 </div>
@@ -113,6 +117,7 @@
 <script>
 const W = 1170, H = 2532;
 const RATIO = 2 / 3;
+const MAXC = 9;
 const $ = id => document.getElementById(id);
 
 /* Layout im Export (in Pixeln) */
@@ -123,11 +128,26 @@ const L = {
   line: 9,
   padX: 45,   // seitlicher Abstand
   gapH: 30,   // Abstand zwischen Covern in einer Reihe
-  gapV: 30    // Abstand zwischen den Reihen
+  gapV: 30,   // Abstand zwischen den Reihen
+  padY: 40    // Mindestabstand oben/unten zu den Bannern
 };
 
-const images = { bg: null, covers: [null, null, null] };
+const images = { bg: null, covers: new Array(MAXC).fill(null) };
 let target = 'bg';
+
+function gridSize() {
+  return { rows: +$('rowsK').value, cols: +$('colsK').value };
+}
+
+/* Coverbreite so, dass das Raster maximal in Breite oder Hoehe passt */
+function coverWidth() {
+  const { rows, cols } = gridSize();
+  const availW = W - 2 * L.padX;
+  const availH = (L.bgY2 - L.bgY1) - 2 * L.padY;
+  const cwByW = (availW - (cols - 1) * L.gapH) / cols;
+  const cwByH = ((availH - (rows - 1) * L.gapV) / rows) * RATIO;
+  return Math.min(cwByW, cwByH);
+}
 
 /* Bild laden */
 function loadImage(file) {
@@ -147,7 +167,7 @@ async function setImageFor(file) {
   render();
 }
 
-/* Ziel wählen */
+/* Ziel waehlen */
 function setTarget(t) {
   target = t;
   $('targetLabel').textContent = 'Ziel: ' + (t === 'bg' ? 'Hintergrund' : 'Cover ' + (t + 1));
@@ -164,20 +184,30 @@ function markTarget() {
   $('bgArea').style.outlineOffset = '-2px';
 }
 
-/* Cover-Felder aufbauen: Cover 1 in Reihe 1, Cover 2 und 3 in Reihe 2 */
+/* Cover-Felder aufbauen: Reihen x Spalten */
 function buildCovers() {
-  const rows = [$('row1'), $('row2')];
-  const placement = [0, 1, 1];
-  rows.forEach(r => r.innerHTML = '');
-  for (let i = 0; i < 3; i++) {
-    const el = document.createElement('div');
-    el.className = 'cover';
-    el.dataset.idx = i;
-    el.addEventListener('click', e => { e.stopPropagation(); setTarget(i); });
-    rows[placement[i]].appendChild(el);
+  const { rows, cols } = gridSize();
+  const host = $('covers');
+  host.innerHTML = '';
+  let idx = 0;
+  for (let r = 0; r < rows; r++) {
+    const row = document.createElement('div');
+    row.className = 'crow';
+    for (let c = 0; c < cols; c++) {
+      const el = document.createElement('div');
+      el.className = 'cover';
+      el.dataset.idx = idx;
+      const my = idx;
+      el.addEventListener('click', e => { e.stopPropagation(); setTarget(my); });
+      row.appendChild(el);
+      idx++;
+    }
+    host.appendChild(row);
   }
-  $('bgArea').addEventListener('click', () => setTarget('bg'));
+  if (target !== 'bg' && target >= rows * cols) setTarget('bg');
 }
+
+$('bgArea').addEventListener('click', () => setTarget('bg'));
 
 /* Dateiauswahl */
 $('pickBtn').addEventListener('click', () => $('file').click());
@@ -200,17 +230,17 @@ document.addEventListener('drop', e => {
   setImageFor(f);
 });
 
-/* Einfügen aus der Zwischenablage */
+/* Einfuegen aus der Zwischenablage */
 document.addEventListener('paste', e => {
   const items = e.clipboardData ? [...e.clipboardData.items] : [];
   const item = items.find(i => i.type.startsWith('image/'));
   if (item) setImageFor(item.getAsFile());
 });
 
-/* Zurücksetzen */
+/* Zuruecksetzen */
 $('resetBtn').addEventListener('click', () => {
   images.bg = null;
-  images.covers = [null, null, null];
+  images.covers = new Array(MAXC).fill(null);
   render();
 });
 
@@ -222,15 +252,15 @@ $('resetBtn').addEventListener('click', () => {
     render();
   });
 });
+['rowsK', 'colsK'].forEach(id => {
+  $(id).addEventListener('input', () => {
+    $(id + 'v').textContent = $(id).value;
+    buildCovers();
+    render();
+  });
+});
 ['shadowOn', 'blurOn', 'vigOn', 'roundOn', 'title', 'time', 'topColor', 'bottomColor', 'lineColor', 'borderColor']
   .forEach(id => $(id).addEventListener('input', render));
-
-/* Berechnung der Coverbreite für die Vorschau:
-   zwei Cover müssen nebeneinander in die Breite passen */
-function coverWidthPreview(sc) {
-  const availW = W * sc - 2 * L.padX * sc;
-  return (availW - L.gapH * sc) / 2;
-}
 
 /* Vorschau */
 function render() {
@@ -273,10 +303,12 @@ function render() {
 
   /* Cover-Layout als CSS-Variablen */
   const covers = $('covers');
-  covers.style.setProperty('--cw', coverWidthPreview(sc) + 'px');
+  covers.style.setProperty('--cw', (coverWidth() * sc) + 'px');
   covers.style.setProperty('--padX', (L.padX * sc) + 'px');
   covers.style.setProperty('--gapH', (L.gapH * sc) + 'px');
   covers.style.setProperty('--gapV', (L.gapV * sc) + 'px');
+  /* Raster mittig im Hintergrundbereich */
+  covers.style.top = (((L.bgY1 + L.bgY2) / 2) / H * 100) + '%';
 
   /* Cover-Optik */
   const rad = $('roundOn').checked ? Math.round(36 * sc) : 0;
@@ -303,7 +335,7 @@ function render() {
   markTarget();
 }
 
-/* Bild einpassen (füllend, mittig) */
+/* Bild einpassen (fuellend, mittig) */
 function drawCoverFit(ctx, img, x, y, w, h) {
   const s = Math.max(w / img.width, h / img.height);
   const dw = img.width * s, dh = img.height * s;
@@ -409,51 +441,53 @@ async function exportJpeg() {
     ctx.restore();
   }
 
-  /* Cover: zwei Reihen, Breite so, dass zwei nebeneinander passen */
-  const cw = (W - 2 * L.padX - L.gapH) / 2;
+  /* Cover-Raster: Reihen x Spalten, mittig im Hintergrundbereich */
+  const { rows, cols } = gridSize();
+  const cw = coverWidth();
   const ch = cw / RATIO;
-  const totalH = ch * 2 + L.gapV;
-  const top = (H - totalH) / 2;
-  const rowY = [top, top + ch + L.gapV];
-  const pos = [
-    { x: (W - cw) / 2, y: rowY[0] },                              // Cover 1: oben, mittig
-    { x: L.padX, y: rowY[1] },                                    // Cover 2: unten links
-    { x: L.padX + cw + L.gapH, y: rowY[1] }                       // Cover 3: unten rechts
-  ];
+  const totalW = cols * cw + (cols - 1) * L.gapH;
+  const totalH = rows * ch + (rows - 1) * L.gapV;
+  const left = (W - totalW) / 2;
+  const top = L.bgY1 + (bgH - totalH) / 2;
 
   const rad = $('roundOn').checked ? 36 : 0;
   const bw = $('borderW').value * 3;
   const sk = $('shadowOn').checked ? $('shadowK').value / 100 : 0;
 
-  images.covers.forEach((img, i) => {
-    if (!img) return;
-    const { x, y } = pos[i];
+  for (let r = 0; r < rows; r++) {
+    for (let cI = 0; cI < cols; cI++) {
+      const i = r * cols + cI;
+      const img = images.covers[i];
+      if (!img) continue;
+      const x = left + cI * (cw + L.gapH);
+      const y = top + r * (ch + L.gapV);
 
-    if (sk > 0) {
+      if (sk > 0) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,' + Math.min(1, sk) + ')';
+        ctx.shadowBlur = 70 * sk;
+        ctx.shadowOffsetY = 25 * sk;
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.roundRect(x, y, cw, ch, rad); ctx.fill();
+        ctx.restore();
+      }
+
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,' + Math.min(1, sk) + ')';
-      ctx.shadowBlur = 70 * sk;
-      ctx.shadowOffsetY = 25 * sk;
-      ctx.fillStyle = '#000';
-      ctx.beginPath(); ctx.roundRect(x, y, cw, ch, rad); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(x, y, cw, ch, rad); ctx.clip();
+      drawCoverFit(ctx, img, x, y, cw, ch);
       ctx.restore();
-    }
 
-    ctx.save();
-    ctx.beginPath(); ctx.roundRect(x, y, cw, ch, rad); ctx.clip();
-    drawCoverFit(ctx, img, x, y, cw, ch);
-    ctx.restore();
-
-    if (bw > 0) {
-      ctx.save();
-      ctx.lineWidth = bw;
-      ctx.strokeStyle = $('borderColor').value;
-      ctx.beginPath();
-      ctx.roundRect(x + bw / 2, y + bw / 2, cw - bw, ch - bw, Math.max(0, rad - bw / 2));
-      ctx.stroke();
-      ctx.restore();
+      if (bw > 0) {
+        ctx.save();
+        ctx.lineWidth = bw;
+        ctx.strokeStyle = $('borderColor').value;
+        ctx.beginPath();
+        ctx.roundRect(x + bw / 2, y + bw / 2, cw - bw, ch - bw, Math.max(0, rad - bw / 2));
+        ctx.stroke();
+        ctx.restore();
+      }
     }
-  });
+  }
 
   /* Banner */
   drawBanner(ctx, L.topY1, L.topY2, $('topColor').value, $('lineColor').value,
